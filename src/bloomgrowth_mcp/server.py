@@ -85,35 +85,11 @@ def create_mcp_server(settings: Settings) -> FastMCP:
     client_factory: Callable[[], BloomGrowthClient | None] = lambda: get_client_from_context(settings)
 
     from .tools import (
-        headlines,
-        issues,
-        l10,
         measurables,
-        milestones,
-        misc,
-        process,
-        rocks,
-        role,
         scorecard,
-        seats,
-        teams,
-        todos,
-        users,
     )
 
-    l10.register(mcp, client_factory)
-    headlines.register(mcp, client_factory)
-    issues.register(mcp, client_factory)
     measurables.register(mcp, client_factory)
-    milestones.register(mcp, client_factory)
-    process.register(mcp, client_factory)
-    rocks.register(mcp, client_factory)
-    role.register(mcp, client_factory)
     scorecard.register(mcp, client_factory)
-    seats.register(mcp, client_factory)
-    teams.register(mcp, client_factory)
-    todos.register(mcp, client_factory)
-    users.register(mcp, client_factory)
-    misc.register(mcp, client_factory)
 
     return mcp
