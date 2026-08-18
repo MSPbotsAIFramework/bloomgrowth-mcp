@@ -31,7 +31,7 @@ python -m bloomgrowth_mcp
 
 ```bash
 curl http://localhost:8080/health
-# {"status": "ok", "service": "bloomgrowth-mcp", "transport": "http"}
+# {"status": "ok"}
 ```
 
 No token is required for the health endpoint.

@@ -79,6 +79,26 @@ def create_mcp_server(settings: Settings) -> FastMCP:
     # correctly behind a reverse proxy or docker network.
     mcp = FastMCP(
         name="bloomgrowth-mcp",
+        instructions=(
+            "Bloom Growth is an EOS/Traction-style business operating system: "
+            "leadership teams use it to run weekly Level 10 meetings and track "
+            "organizational execution — scorecards of weekly KPIs (measurables), "
+            "quarterly goals (Rocks), issues, to-dos, headlines, and org-chart "
+            "accountability (seats/roles). This server currently exposes 2 of "
+            "those categories: measurables (the KPIs behind a scorecard — "
+            "create/update a KPI's definition, read its values, record a "
+            "week's score) and scorecard (the computed rollup of a user's or "
+            "meeting's measurables and their weekly on/off-track status). "
+            "Typical flow: call bloomgrowth_get_my_scorecard or "
+            "bloomgrowth_get_meeting_scorecard to see which measurables are "
+            "on/off track, then bloomgrowth_get_measurable_scores for weekly "
+            "history, or bloomgrowth_set_measurable_week_value to record a new "
+            "week's value. Use bloomgrowth_create_measurable / "
+            "bloomgrowth_update_measurable to manage a KPI's definition "
+            "(target, direction, owner). Other Bloom Growth categories "
+            "(meetings, rocks, issues, todos, org chart) are out of scope for "
+            "this server."
+        ),
         transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
     )
 
