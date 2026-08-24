@@ -1,36 +1,75 @@
 from collections.abc import Callable
+from typing import Annotated
 
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from .._json import dump_json_capped
 from ..api_client import BloomGrowthClient, BloomGrowthError
 from ._common import NO_TOKEN
+
+_DIRECTION_VALUES = (
+    '"EqualTo", "GreaterThan", "GreaterThanNotEqual", "Between", '
+    '"LessThanOrEqual", "LessThan"'
+)
+_UNIT_TYPE_VALUES = (
+    '"None", "Dollar", "Percent", "Pound", "Euros", "Pesos", "Yen", '
+    '"YesNo", "INR", "Dirham", "Rand", "XCG"'
+)
+_INCLUDE_ORIGIN_DESC = (
+    "If true, forwards Include_Origin=true to the Bloom Growth API so the "
+    "response includes whatever origin/provenance data that endpoint adds "
+    "for each record. This server does not parse or reshape that data — it "
+    "returns the upstream JSON verbatim, and neither this codebase nor Bloom "
+    "Growth's own published OpenAPI spec (https://dev-api.bloomgrowth.com/"
+    "swagger/v1/swagger.json) documents which fields appear or what they "
+    "mean (the spec's schema component definitions aren't published, and "
+    "the word \"origin\" appears nowhere except this parameter's name). "
+    "Defaults to false (omitted) if not set. If you need to know exactly "
+    "what this adds, call the same tool once with it true and once false "
+    "and diff the results."
+)
+_ID_SOURCE_NOTE = (
+    " This server has no tool that looks up or lists valid IDs for this "
+    "parameter — it must be supplied from context you already have (e.g. "
+    "the Bloom Growth web UI, a prior response from this same server, or "
+    "another system)."
+)
 
 
 def register(mcp: FastMCP, client_factory: Callable[[], BloomGrowthClient | None]) -> None:
 
     @mcp.tool()
     async def bloomgrowth_create_measurable(
-        name: str | None = None,
-        direction: str | None = None,
-        target: float | None = None,
-        unit_type: str | None = None,
-        accountable_user_id: int | None = None,
+        name: Annotated[str | None, Field(description="Name of the new measurable.")] = None,
+        direction: Annotated[
+            str | None,
+            Field(description=f"Comparison operator — one of {_DIRECTION_VALUES}."),
+        ] = None,
+        target: Annotated[
+            float | None, Field(description="Target value the weekly score is compared against.")
+        ] = None,
+        unit_type: Annotated[
+            str | None, Field(description=f"Unit of the value — one of {_UNIT_TYPE_VALUES}.")
+        ] = None,
+        accountable_user_id: Annotated[
+            int | None,
+            Field(
+                description=(
+                    "ID of the user accountable for this measurable."
+                    + _ID_SOURCE_NOTE
+                )
+            ),
+        ] = None,
     ) -> str:
-        """Create a scorecard measurable.
+        """Create a scorecard measurable (KPI definition).
 
-        Args:
-            name: Optional measurable name.
-            direction: Optional comparison operator — one of "EqualTo",
-                "GreaterThan", "GreaterThanNotEqual", "Between",
-                "LessThanOrEqual", "LessThan".
-            target: Optional target value.
-            unit_type: Optional unit — one of "None", "Dollar", "Percent",
-                "Pound", "Euros", "Pesos", "Yen", "YesNo", "INR", "Dirham",
-                "Rand", "XCG".
-            accountable_user_id: Optional accountable user ID.
-        """
+All fields are optional; an all-omitted call still POSTs an empty body,
+whatever Bloom Growth does with that. On success the response is a
+Measurable object — take its id and pass it as measurable_id to
+bloomgrowth_update_measurable / bloomgrowth_get_measurable /
+bloomgrowth_get_measurable_scores / bloomgrowth_set_measurable_week_value."""
         client = client_factory()
         if client is None:
             return NO_TOKEN
@@ -52,12 +91,13 @@ def register(mcp: FastMCP, client_factory: Callable[[], BloomGrowthClient | None
             return e.to_envelope()
 
     @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
-    async def bloomgrowth_get_my_measurables(include_origin: bool | None = None) -> str:
+    async def bloomgrowth_get_my_measurables(
+        include_origin: Annotated[bool | None, Field(description=_INCLUDE_ORIGIN_DESC)] = None,
+    ) -> str:
         """Get the calling user's measurables.
 
-        Args:
-            include_origin: Optional — include origin metadata.
-        """
+Same list-of-Measurable response shape as bloomgrowth_get_user_measurables,
+scoped implicitly to the caller instead of an explicit user_id."""
         client = client_factory()
         if client is None:
             return NO_TOKEN
@@ -70,13 +110,16 @@ def register(mcp: FastMCP, client_factory: Callable[[], BloomGrowthClient | None
             return e.to_envelope()
 
     @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
-    async def bloomgrowth_get_user_measurables(user_id: int, include_origin: bool | None = None) -> str:
+    async def bloomgrowth_get_user_measurables(
+        user_id: Annotated[
+            int, Field(description="ID of the user whose measurables to list." + _ID_SOURCE_NOTE)
+        ],
+        include_origin: Annotated[bool | None, Field(description=_INCLUDE_ORIGIN_DESC)] = None,
+    ) -> str:
         """Get a specific user's measurables.
 
-        Args:
-            user_id: Required user ID.
-            include_origin: Optional — include origin metadata.
-        """
+Same list-of-Measurable response shape as bloomgrowth_get_my_measurables,
+but for an explicitly named user_id instead of the caller."""
         client = client_factory()
         if client is None:
             return NO_TOKEN
@@ -90,25 +133,37 @@ def register(mcp: FastMCP, client_factory: Callable[[], BloomGrowthClient | None
 
     @mcp.tool(annotations=ToolAnnotations(idempotentHint=True))
     async def bloomgrowth_update_measurable(
-        measurable_id: int,
-        name: str | None = None,
-        direction: str | None = None,
-        target: float | None = None,
-        unit_type: str | None = None,
-        alt_target: float | None = None,
+        measurable_id: Annotated[
+            int, Field(description="ID of the measurable to update." + _ID_SOURCE_NOTE)
+        ],
+        name: Annotated[str | None, Field(description="New name for the measurable.")] = None,
+        direction: Annotated[
+            str | None,
+            Field(
+                description=(
+                    "New comparison operator — one of "
+                    f"{_DIRECTION_VALUES} (see bloomgrowth_create_measurable)."
+                )
+            ),
+        ] = None,
+        target: Annotated[float | None, Field(description="New target value.")] = None,
+        unit_type: Annotated[
+            str | None,
+            Field(
+                description=(
+                    f"New unit type — one of {_UNIT_TYPE_VALUES} (see "
+                    "bloomgrowth_create_measurable)."
+                )
+            ),
+        ] = None,
+        alt_target: Annotated[
+            float | None,
+            Field(description='Alternate target value, used when direction is "Between".'),
+        ] = None,
     ) -> str:
-        """Update a measurable's definition.
+        """Update an existing measurable's definition (name, target, direction, unit, etc).
 
-        Args:
-            measurable_id: Required measurable ID.
-            name: Optional new name.
-            direction: Optional comparison operator (see
-                bloomgrowth_create_measurable for allowed values).
-            target: Optional new target value.
-            unit_type: Optional new unit type (see bloomgrowth_create_measurable
-                for allowed values).
-            alt_target: Optional alternate target value (used with "Between").
-        """
+Only the fields you pass are sent; omitted fields are left unchanged."""
         client = client_factory()
         if client is None:
             return NO_TOKEN
@@ -130,13 +185,16 @@ def register(mcp: FastMCP, client_factory: Callable[[], BloomGrowthClient | None
             return e.to_envelope()
 
     @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
-    async def bloomgrowth_get_measurable(measurable_id: int, include_origin: bool | None = None) -> str:
-        """Get a measurable by ID.
+    async def bloomgrowth_get_measurable(
+        measurable_id: Annotated[
+            int, Field(description="ID of the measurable to fetch." + _ID_SOURCE_NOTE)
+        ],
+        include_origin: Annotated[bool | None, Field(description=_INCLUDE_ORIGIN_DESC)] = None,
+    ) -> str:
+        """Get a single measurable's definition by ID.
 
-        Args:
-            measurable_id: Required measurable ID.
-            include_origin: Optional — include origin metadata.
-        """
+Same Measurable object shape as one entry in bloomgrowth_get_my_measurables
+/ bloomgrowth_get_user_measurables, fetched directly by ID instead of listed."""
         client = client_factory()
         if client is None:
             return NO_TOKEN
@@ -150,14 +208,13 @@ def register(mcp: FastMCP, client_factory: Callable[[], BloomGrowthClient | None
 
     @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
     async def bloomgrowth_get_measurable_scores(
-        measurable_id: int, include_origin: bool | None = None
+        measurable_id: Annotated[
+            int,
+            Field(description="ID of the measurable whose weekly scores to fetch." + _ID_SOURCE_NOTE),
+        ],
+        include_origin: Annotated[bool | None, Field(description=_INCLUDE_ORIGIN_DESC)] = None,
     ) -> str:
-        """Get the weekly scores recorded for a measurable.
-
-        Args:
-            measurable_id: Required measurable ID.
-            include_origin: Optional — include origin metadata.
-        """
+        """Get the weekly scores recorded for a measurable."""
         client = client_factory()
         if client is None:
             return NO_TOKEN
@@ -171,15 +228,31 @@ def register(mcp: FastMCP, client_factory: Callable[[], BloomGrowthClient | None
 
     @mcp.tool(annotations=ToolAnnotations(idempotentHint=True))
     async def bloomgrowth_set_measurable_week_value(
-        measurable_id: int, week_id: int, value: float | None = None
+        measurable_id: Annotated[
+            int, Field(description="ID of the measurable to record a score for." + _ID_SOURCE_NOTE)
+        ],
+        week_id: Annotated[
+            int, Field(description="ID of the week to record the score against." + _ID_SOURCE_NOTE)
+        ],
+        value: Annotated[
+            float | None,
+            Field(
+                description=(
+                    "Score value to set for this week. If omitted, this server "
+                    "sends the PUT with an empty JSON body (no \"value\" key at "
+                    "all) rather than a null or zero value. What the Bloom "
+                    "Growth API then does with a missing value — leave the "
+                    "existing score untouched, clear it, default it to 0, or "
+                    "reject the request — is not documented in this "
+                    "codebase or in Bloom Growth's published OpenAPI spec, "
+                    "and this server has not been verified against a live "
+                    "account (see README Known Gaps). Pass an explicit value "
+                    "if you need a guaranteed outcome."
+                )
+            ),
+        ] = None,
     ) -> str:
-        """Set a measurable's score value for a specific week.
-
-        Args:
-            measurable_id: Required measurable ID.
-            week_id: Required week ID.
-            value: Optional score value to set.
-        """
+        """Set a measurable's score value for a specific week."""
         client = client_factory()
         if client is None:
             return NO_TOKEN
