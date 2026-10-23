@@ -108,13 +108,13 @@ curl http://localhost:8080/health
 
 No token is required for the health endpoint.
 
-## 授权参数说明 (Authentication)
+## Authentication
 
 Every request to `/mcp` must include the following HTTP header:
 
-| Header | 类型 | 是否必填 | 默认值 | 枚举值 | 字段描述 | Example |
+| Header | Type | Required | Default | Allowed values | Description | Example |
 |---|---|---|---|---|---|---|
-| `X-BloomGrowth-Token` | string | 必填 | 无 | 无(自由文本) | OAuth2 bearer access token,由调用方(Agent Platform / 上游网关)通过 `POST https://app.bloomgrowth.com/Token`(form-urlencoded,`grant_type=password&userName=<email>&password=<password>`)预先换取,有效期约 2 周,过期后需重新换取。本服务从不接触 email/password,只转发已获取的 token。 | `X-BloomGrowth-Token: <access_token>` |
+| `X-BloomGrowth-Token` | string | Required | None | None (free text) | OAuth2 bearer access token, obtained in advance by the caller (Agent Platform / upstream gateway) via `POST https://app.bloomgrowth.com/Token` (form-urlencoded, `grant_type=password&userName=<email>&password=<password>`); valid for about 2 weeks and must be re-obtained after it expires. This service never touches the email/password and only forwards the token already obtained. | `X-BloomGrowth-Token: <access_token>` |
 
 Missing the header returns `401 Unauthorized`.
 
@@ -142,25 +142,25 @@ Connect your MCP client with:
 
 ### Measurables (7)
 
-| Tool | 功能 | 参数 |
+| Tool | Description | Parameters |
 |---|---|---|
-| `bloomgrowth_create_measurable` | 创建计分卡指标 | `name?`, `direction?`, `target?`, `unit_type?`, `accountable_user_id?` |
-| `bloomgrowth_get_my_measurables` | 查我的 measurables | `include_origin?` |
-| `bloomgrowth_get_user_measurables` | 查指定用户的 measurables | `user_id`, `include_origin?` |
-| `bloomgrowth_update_measurable` | 更新指标定义 | `measurable_id`, `name?`, `direction?`, `target?`, `unit_type?`, `alt_target?` |
-| `bloomgrowth_get_measurable` | 查指标详情 | `measurable_id`, `include_origin?` |
-| `bloomgrowth_get_measurable_scores` | 查指标的每周得分 | `measurable_id`, `include_origin?` |
-| `bloomgrowth_set_measurable_week_value` | 设置指标某周的分值 | `measurable_id`, `week_id`, `value?` |
+| `bloomgrowth_create_measurable` | Create a scorecard measurable | `name?`, `direction?`, `target?`, `unit_type?`, `accountable_user_id?` |
+| `bloomgrowth_get_my_measurables` | Get my measurables | `include_origin?` |
+| `bloomgrowth_get_user_measurables` | Get a given user's measurables | `user_id`, `include_origin?` |
+| `bloomgrowth_update_measurable` | Update a measurable's definition | `measurable_id`, `name?`, `direction?`, `target?`, `unit_type?`, `alt_target?` |
+| `bloomgrowth_get_measurable` | Get measurable details | `measurable_id`, `include_origin?` |
+| `bloomgrowth_get_measurable_scores` | Get a measurable's weekly scores | `measurable_id`, `include_origin?` |
+| `bloomgrowth_set_measurable_week_value` | Set a measurable's value for a given week | `measurable_id`, `week_id`, `value?` |
 
 ### Scorecard (3)
 
-| Tool | 功能 | 参数 |
+| Tool | Description | Parameters |
 |---|---|---|
-| `bloomgrowth_get_meeting_scorecard` | 查会议计分卡 | `meeting_id` |
-| `bloomgrowth_get_my_scorecard` | 查我的计分卡 | 无（MSPbots 现有集成实际使用的唯一接口） |
-| `bloomgrowth_get_user_scorecard` | 查指定用户的计分卡 | `user_id` |
+| `bloomgrowth_get_meeting_scorecard` | Get a meeting scorecard | `meeting_id` |
+| `bloomgrowth_get_my_scorecard` | Get my scorecard | None (the only endpoint actually used by the existing MSPbots integration) |
+| `bloomgrowth_get_user_scorecard` | Get a given user's scorecard | `user_id` |
 
-## 测试示例 (Test Example)
+## Test Example
 
 Get the calling user's scorecard (matches MSPbots' existing integration usage):
 
